@@ -24,7 +24,8 @@ Prev: `<C-p>`
 
 ### Plan
 
-- Preview next/prev candidates
-- Listing and managing current yank history
-- Adjust indentation for block-wise paste
-
+- High
+    - Adjust indentation for block-wise paste
+    - Preview next/prev candidates
+- Low
+  - Listing and managing current yank history
