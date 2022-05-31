@@ -26,4 +26,5 @@ Prev: `<C-p>`
 
 - Preview next/prev candidates
 - Listing and managing current yank history
+- Adjust indentation for block-wise paste
 
