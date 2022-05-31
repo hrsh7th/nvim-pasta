@@ -2,8 +2,11 @@
 
 The yank/paste enhancement plugin for neovim.
 
-(Early stage.)
+This plugin provides the following functionality.
 
+1. Save your all yank history automatically.
+2. Cycle yank history after paste via `<C-n>` or `<C-p>` 
+3. ~Adjust block-wise register content's indentation~ (in the future)
 
 ## Usage
 
