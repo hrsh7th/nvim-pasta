@@ -1,7 +1,6 @@
 local Chars = {
   Next = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
   Prev = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
-  Esc = vim.api.nvim_replace_termcodes('<Esc>', true, true, true),
 }
 
 local pasta = {}
@@ -47,19 +46,11 @@ function pasta.paste(entry, after, follow)
   vim.cmd([[redraw!]])
 end
 
-function pasta.P()
-  if #pasta.history == 0 then
-    return
-  end
-  local entry = pasta.history[1]
-  vim.api.nvim_put(table.concat(entry.regcontents, '\n'), entry.regtype, false, true)
-end
-
 function pasta.state()
   local cursor = vim.api.nvim_win_get_cursor(0)
   local changenr = vim.fn.changenr()
   return function()
-    vim.cmd(([[silent! undo %s]]):format(changenr))
+    vim.cmd(([[noautocmd silent! undo %s]]):format(changenr))
     vim.api.nvim_win_set_cursor(0, cursor)
   end
 end
