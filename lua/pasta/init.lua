@@ -1,4 +1,5 @@
 local converters = require('pasta.converters')
+local highlight  = require('pasta.highlight')
 
 ---@class pasta.Entry
 ---@field public regtype string
@@ -51,6 +52,7 @@ function pasta.start(after, follow)
     return
   end
 
+  vim.diagnostic.disable()
   local savepoint = pasta.savepoint()
   local index = 1
   pasta.paste(pasta.history[index], after, follow)
@@ -65,10 +67,12 @@ function pasta.start(after, follow)
       savepoint()
       pasta.paste(pasta.history[index], after, follow)
     elseif char ~= config.next_key and char ~= config.prev_key then
-      vim.api.nvim_input(char)
+      vim.api.nvim_feedkeys(char, 'i', true)
       break
     end
   end
+  highlight.clear()
+  vim.diagnostic.enable()
 end
 
 ---Paste the text and redraw.
@@ -79,7 +83,9 @@ function pasta.paste(entry, after, follow)
   for _, converter in ipairs(config.converters or {}) do
     entry = converter(entry)
   end
+
   vim.api.nvim_put(entry.regcontents, entry.regtype, after, follow)
+  highlight.cursor(vim.api.nvim_win_get_cursor(0))
   vim.cmd([[redraw!]])
 end
 
