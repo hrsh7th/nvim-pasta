@@ -10,20 +10,19 @@ This plugin provides the following functionality.
 
 ## Usage
 
-### Add mapping
+### Setup
 
 ```lua
-vim.keymap.set('n', 'p', '<Plug>(pasta-p)')
+vim.keymap.set('n', 'p', require('pasta.mappings').p)
+vim.keymap.set('n', 'P', require('pasta.mappings').P)
+
+-- This is the default. You can omit `setup` call if you don't want to change this. 
+require('pasta').setup {
+  converters = {},
+  next_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
+  prev_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
+}
 ```
-
-
-### Cycle keys
-
-The current nvim-pasta hardcoded the keys for cycling the yank history.
-
-Next: `<C-n>`
-Prev: `<C-p>`
-
 
 ### Plan
 
@@ -32,3 +31,4 @@ Prev: `<C-p>`
     - Preview next/prev candidates
 - Low
   - Listing and managing current yank history
+

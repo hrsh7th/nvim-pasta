@@ -17,14 +17,10 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end
 })
 
-vim.api.nvim_set_keymap('n', '<Plug>(pasta-p)', '', {
-  callback = function()
-    pasta.p()
-  end,
-  silent = true,
-  noremap = true,
-})
+for _, register in ipairs({ vim.v.register, '' }) do
+  local reginfo = vim.fn.getreginfo(register)
+  if not vim.tbl_isempty(reginfo) then
+    pasta.save(reginfo.regtype, reginfo.regcontents)
+  end
+end
 
-vim.api.nvim_set_keymap('n', 'p', '<Plug>(pasta-p)', {
-  noremap = false
-})
