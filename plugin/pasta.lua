@@ -28,11 +28,3 @@ vim.api.nvim_set_hl(0, 'PastaCursor', {
   link = 'Cursor',
 })
 
----Initialize shada registers.
-for _, register in ipairs({ vim.v.register, '' }) do
-  local reginfo = vim.fn.getreginfo(register)
-  if not vim.tbl_isempty(reginfo) then
-    pasta.save(reginfo.regtype, reginfo.regcontents)
-  end
-end
-

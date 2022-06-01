@@ -48,6 +48,8 @@ end
 ---@param after boolean
 ---@param follow boolean
 function pasta.start(after, follow)
+  pasta.ensure()
+
   if #pasta.history == 0 then
     return
   end
@@ -97,6 +99,16 @@ function pasta.savepoint()
   return function()
     vim.cmd(([[noautocmd silent! undo %s]]):format(changenr))
     vim.api.nvim_win_set_cursor(0, cursor)
+  end
+end
+
+---Ensure recent register.
+function pasta.ensure()
+  for _, register in ipairs({ '', vim.v.register }) do
+    local reginfo = vim.fn.getreginfo(register)
+    if not vim.tbl_isempty(reginfo) then
+      pasta.save(reginfo.regtype, reginfo.regcontents)
+    end
   end
 end
 
