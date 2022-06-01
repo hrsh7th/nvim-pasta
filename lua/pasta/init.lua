@@ -109,7 +109,7 @@ end
 
 ---Ensure recent register.
 function pasta.ensure()
-  for _, register in ipairs({ '', vim.v.register }) do
+  for _, register in ipairs({ vim.v.register }) do
     local reginfo = vim.fn.getreginfo(register)
     if not vim.tbl_isempty(reginfo) then
       pasta.save(reginfo.regtype, reginfo.regcontents)
