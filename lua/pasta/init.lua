@@ -7,6 +7,7 @@ local highlight  = require('pasta.highlight')
 
 ---@class pasta.Config
 ---@field public converters? (fun(entry: pasta.Entry): pasta.Entry)[]
+---@field public paste_mode? boolean
 ---@field public next_key? string
 ---@field public prev_key? string
 
@@ -14,6 +15,7 @@ local config = {
   converters = {
     converters.indentation,
   },
+  paste_mode = true,
   next_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
   prev_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
 }
@@ -86,7 +88,10 @@ function pasta.paste(entry, after, follow)
     entry = converter(entry)
   end
 
+  local paste = vim.o.paste
+  vim.o.paste = config.paste_mode
   vim.api.nvim_put(entry.regcontents, entry.regtype, after, follow)
+  vim.o.paste = paste
   highlight.cursor(vim.api.nvim_win_get_cursor(0))
   vim.cmd([[redraw!]])
 end
