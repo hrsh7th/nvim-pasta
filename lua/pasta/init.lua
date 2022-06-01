@@ -16,8 +16,8 @@ local config = {
     converters.indentation,
   },
   paste_mode = true,
-  next_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
-  prev_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
+  next_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
+  prev_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
 }
 
 local pasta = {}
@@ -59,15 +59,18 @@ function pasta.start(after, follow)
   vim.diagnostic.disable()
   local savepoint = pasta.savepoint()
   local index = 1
-  pasta.paste(pasta.history[index], after, follow)
+  local entry = pasta.history[index]
+  pasta.paste(entry, after, follow)
   while true do
     local char = vim.fn.nr2char(vim.fn.getchar())
     if char == config.prev_key and index > 1 then
       index = index - 1
+      entry = pasta.history[index]
       savepoint()
       pasta.paste(pasta.history[index], after, follow)
     elseif char == config.next_key and index < #pasta.history then
       index = index + 1
+      entry = pasta.history[index]
       savepoint()
       pasta.paste(pasta.history[index], after, follow)
     elseif char ~= config.next_key and char ~= config.prev_key then
@@ -75,6 +78,8 @@ function pasta.start(after, follow)
       break
     end
   end
+  pasta.save(entry.regtype, entry.regcontents)
+  vim.fn.setreg(vim.v.register, table.concat(entry.regcontents, '\n'), entry.regtype)
   highlight.clear()
   vim.diagnostic.enable()
 end
