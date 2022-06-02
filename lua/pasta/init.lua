@@ -108,11 +108,11 @@ end
 ---Create savepoint.
 ---@return function
 function pasta.savepoint()
-  local cursor = vim.api.nvim_win_get_cursor(0)
+  local cursor = vim.fn.getcurpos()
   local changenr = vim.fn.changenr()
   return function()
     vim.cmd(([[noautocmd silent! undo %s]]):format(changenr))
-    vim.api.nvim_win_set_cursor(0, cursor)
+    vim.fn.setpos('.', cursor)
   end
 end
 
