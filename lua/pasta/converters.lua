@@ -24,6 +24,8 @@ function converters.indentation(entry)
         end
       end
     end
+    min_indent = min_indent or ''
+
     return vim.tbl_map(function(content)
       return string.sub(content, #min_indent + 1)
     end, contents)
