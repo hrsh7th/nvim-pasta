@@ -19,12 +19,8 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 })
 
 ---Create highlights.
-vim.api.nvim_set_hl(0, 'PastaRange', {
-  default = true,
-  underline = true,
-})
 vim.api.nvim_set_hl(0, 'PastaCursor', {
   default = true,
-  link = 'Cursor',
+  bg = 'Orange',
 })
 

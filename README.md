@@ -27,9 +27,5 @@ require('pasta').setup {
 
 ### Plan
 
-- High
-    - Adjust indentation for block-wise paste
-    - Preview next/prev candidates
-- Low
-  - Listing and managing current yank history
-
+- [x] Adjust indentation for block-wise paste
+- [ ] Preview next/prev candidates

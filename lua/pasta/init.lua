@@ -89,6 +89,10 @@ end
 ---@param after boolean
 ---@param follow boolean
 function pasta.paste(entry, after, follow)
+  entry = {
+    regtype = entry.regtype,
+    regcontents = { unpack(entry.regcontents) },
+  }
   for _, converter in ipairs(config.converters or {}) do
     entry = converter(entry)
   end
