@@ -8,8 +8,12 @@ function converters.indentation(entry)
 
   local function get_base_indent()
     local cursor = vim.api.nvim_win_get_cursor(0)
-    local content = vim.api.nvim_buf_get_lines(0, cursor[1], cursor[1] + 1, false)[1]
-    return string.match(content, '^%s+') or ''
+    local curr = string.match(vim.api.nvim_buf_get_lines(0, cursor[1] - 1, cursor[1], false)[1], '^%s+') or ''
+    local next = string.match(vim.api.nvim_buf_get_lines(0, cursor[1], cursor[1] + 1, false)[1], '^%s+') or ''
+    if #curr > #next then
+      return curr
+    end
+    return next
   end
 
   local function remove_base_indent(contents)
