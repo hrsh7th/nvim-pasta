@@ -101,17 +101,22 @@ function pasta.paste(entry, after, follow)
   vim.o.paste = config.paste_mode
   vim.api.nvim_put(entry.regcontents, entry.regtype, after, follow)
   vim.o.paste = paste
-  highlight.cursor(vim.api.nvim_win_get_cursor(0))
-  vim.cmd([[redraw!]])
+  if vim.fn.reg_executing() == '' then
+    highlight.cursor(vim.api.nvim_win_get_cursor(0))
+    vim.cmd([[redraw!]])
+  end
 end
 
 ---Create savepoint.
 ---@return function
 function pasta.savepoint()
+  vim.o.undolevels = vim.o.undolevels
   local cursor = vim.fn.getcurpos()
   local changenr = vim.fn.changenr()
   return function()
-    vim.cmd(([[noautocmd silent! undo %s]]):format(changenr))
+    if vim.fn.changenr() ~= changenr then
+      vim.cmd(([[undo %s]]):format(changenr))
+    end
     vim.fn.setpos('.', cursor)
   end
 end

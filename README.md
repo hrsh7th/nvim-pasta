@@ -30,4 +30,5 @@ require('pasta').setup {
 ### Plan
 
 - [x] Adjust indentation for line-wise paste
+- [x] Improve macro handling
 - [ ] Preview next/prev candidates
