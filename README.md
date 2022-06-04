@@ -13,8 +13,8 @@ This plugin provides the following functionality.
 ### Setup
 
 ```lua
-vim.keymap.set('n', 'p', require('pasta.mappings').p)
-vim.keymap.set('n', 'P', require('pasta.mappings').P)
+vim.keymap.set({ 'n', 'x' }, 'p', require('pasta.mappings').p)
+vim.keymap.set({ 'n', 'x' }, 'P', require('pasta.mappings').P)
 
 -- This is the default. You can omit `setup` call if you don't want to change this. 
 require('pasta').setup {
@@ -31,4 +31,5 @@ require('pasta').setup {
 
 - [x] Adjust indentation for line-wise paste
 - [x] Improve macro handling
+- [x] Support visual mode
 - [ ] Preview next/prev candidates
