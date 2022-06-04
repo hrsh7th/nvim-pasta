@@ -60,6 +60,7 @@ describe('pasta', function()
     'normal! 4Gv',
   }) do
     for _, regcontents in ipairs({
+      { '' },
       { '', '' },
       { 'text' },
       { 'text', 'text' },
