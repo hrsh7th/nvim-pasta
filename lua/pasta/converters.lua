@@ -11,12 +11,12 @@ function converters.indentation(entry)
     local curr_line = vim.api.nvim_buf_get_lines(0, cursor[1] - 1, cursor[1], false)[1]
     local next_line = vim.api.nvim_buf_get_lines(0, cursor[1], cursor[1] + 1, false)[1]
 
-    local curr_indent = string.match(curr_line or '', '^%s+') or ''
+    local curr_indent = string.match(curr_line or '', '^%s*') or ''
     if not next_line or vim.api.nvim_get_mode().mode ~= 'n' then
       return curr_indent
     end
 
-    local next_indent = string.match(next_line or '', '^%s+') or ''
+    local next_indent = string.match(next_line or '', '^%s*') or ''
     if #curr_indent > #next_indent then
       return curr_indent
     end
@@ -26,7 +26,7 @@ function converters.indentation(entry)
   local function remove_base_indent(contents)
     local min_indent
     for _, content in ipairs(contents) do
-      local indent = string.match(content, '^%s+')
+      local indent = string.match(content, '^%s*')
       if indent then
         if not min_indent then
           min_indent = indent
