@@ -63,7 +63,7 @@ function pasta.start(after)
   end
 
   pasta.running = true
-  pcall(function()
+  local ok, err = pcall(function()
     vim.diagnostic.disable()
     local savepoint = pasta.savepoint()
     local index = 1
@@ -89,6 +89,9 @@ function pasta.start(after)
     pasta.save(entry.regtype, entry.regcontents)
     vim.fn.setreg(vim.v.register, entry)
   end)
+  if not ok then
+    print(err)
+  end
   pasta.running = false
   highlight.clear()
   vim.diagnostic.enable()
