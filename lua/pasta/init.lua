@@ -66,21 +66,22 @@ function pasta.start(after)
   local ok, err = pcall(function()
     vim.diagnostic.disable()
     local savepoint = pasta.savepoint()
+    local context = pasta.context(savepoint)
     local index = 1
     local entry = pasta.history[index]
-    pasta.paste(entry, after)
+    pasta.paste(entry, after, context)
     while true do
       local char = vim.fn.nr2char(vim.fn.getchar())
       if char == config.prev_key and index > 1 then
         index = index - 1
         entry = pasta.history[index]
         savepoint()
-        pasta.paste(pasta.history[index], after)
+        pasta.paste(pasta.history[index], after, context)
       elseif char == config.next_key and index < #pasta.history then
         index = index + 1
         entry = pasta.history[index]
         savepoint()
-        pasta.paste(pasta.history[index], after)
+        pasta.paste(pasta.history[index], after, context)
       elseif char ~= config.next_key and char ~= config.prev_key then
         vim.api.nvim_feedkeys(char, 'i', true)
         break
@@ -100,13 +101,13 @@ end
 ---Paste the text and redraw.
 ---@param entry pasta.Entry
 ---@param after boolean
-function pasta.paste(entry, after)
+function pasta.paste(entry, after, context)
   entry = {
     regtype = entry.regtype,
     regcontents = { unpack(entry.regcontents) },
   }
   for _, converter in ipairs(config.converters or {}) do
-    entry = converter(entry)
+    entry = converter(entry, context)
   end
 
   if entry.regtype ~= 'v' and #entry.regcontents > 1 and entry.regcontents[#entry.regcontents] == '' then
@@ -159,6 +160,23 @@ function pasta.ensure()
   end
 end
 
+---Create context.
+---@param savepoint fun()
+---@return { new_indent: string }
+function pasta.context(savepoint)
+  vim.cmd([[normal! o]])
+  local new_indent = string.rep(' ', vim.api.nvim_eval(vim.bo.indentexpr))
+  if not vim.bo.expandtab then
+    new_indent = new_indent:gsub(string.rep(' ', vim.bo.shiftwidth ~= 0 and vim.bo.shiftwidth or vim.bo.tabstop), '\t')
+  end
+
+  local context = {
+    new_indent = new_indent,
+  }
+  savepoint()
+  return context
+end
+
 ---Return the mode is visual or not.
 ---@return boolean
 function pasta.is_visual()
@@ -166,4 +184,3 @@ function pasta.is_visual()
 end
 
 return pasta
-
