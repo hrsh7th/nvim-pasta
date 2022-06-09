@@ -164,7 +164,7 @@ end
 ---@param savepoint fun()
 ---@return { new_indent: string }
 function pasta.context(savepoint)
-  vim.cmd([[normal! o]])
+  vim.cmd(vim.api.nvim_replace_termcodes('normal! <Esc>o', true, true, true))
   local new_indent = string.rep(' ', vim.api.nvim_eval(vim.bo.indentexpr))
   if not vim.bo.expandtab then
     new_indent = new_indent:gsub(string.rep(' ', vim.bo.shiftwidth ~= 0 and vim.bo.shiftwidth or vim.bo.tabstop), '\t')
