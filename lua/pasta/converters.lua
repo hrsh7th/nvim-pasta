@@ -9,12 +9,14 @@ function converters.indentation(entry, context)
   local function remove_base_indent(contents)
     local min_indent
     for _, content in ipairs(contents) do
-      local indent = string.match(content, '^%s*')
-      if indent then
-        if not min_indent then
-          min_indent = indent
-        else
-          min_indent = #min_indent > #indent and indent or min_indent
+      if content ~= '' then
+        local indent = string.match(content, '^%s*')
+        if indent then
+          if not min_indent then
+            min_indent = indent
+          else
+            min_indent = #min_indent > #indent and indent or min_indent
+          end
         end
       end
     end
