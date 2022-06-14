@@ -162,21 +162,25 @@ end
 
 ---Create context.
 ---@param savepoint fun()
----@return { new_indent: string }
+---@return { indent?: { curr: string, next: string } }
 function pasta.context(savepoint)
+  if vim.bo.indentexpr == '' then
+    return {}
+  end
+
+  local curr_indent = string.match(vim.api.nvim_get_current_line(), '^%s+') or ''
   vim.cmd(vim.api.nvim_replace_termcodes('normal! <Esc>o', true, true, true))
-  local new_indent
-  if vim.bo.indentexpr ~= '' then
-    new_indent = string.rep(' ', vim.api.nvim_eval(vim.bo.indentexpr))
-    if not vim.bo.expandtab then
-      new_indent = new_indent:gsub(string.rep(' ', vim.bo.shiftwidth ~= 0 and vim.bo.shiftwidth or vim.bo.tabstop), '\t')
-    end
-  else
-    new_indent = ''
+  local next_indent = string.rep(' ', vim.api.nvim_eval(vim.bo.indentexpr))
+
+  if not vim.bo.expandtab then
+    next_indent = next_indent:gsub(string.rep(' ', vim.bo.shiftwidth ~= 0 and vim.bo.shiftwidth or vim.bo.tabstop), '\t')
   end
 
   local context = {
-    new_indent = new_indent,
+    indent = {
+      curr = curr_indent,
+      next = next_indent,
+    },
   }
   savepoint()
   return context

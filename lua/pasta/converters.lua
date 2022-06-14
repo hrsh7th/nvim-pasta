@@ -6,6 +6,10 @@ function converters.indentation(entry, context)
     return entry
   end
 
+  if not context.indent then
+    return entry
+  end
+
   local function remove_base_indent(contents)
     local min_indent
     for _, content in ipairs(contents) do
@@ -29,7 +33,7 @@ function converters.indentation(entry, context)
 
   entry.regcontents = remove_base_indent(entry.regcontents)
   entry.regcontents = vim.tbl_map(function(content)
-    return context.new_indent .. content
+    return context.indent.next .. content
   end, entry.regcontents)
 
   return entry
