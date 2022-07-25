@@ -76,12 +76,12 @@ function pasta.start(after)
         index = index - 1
         entry = pasta.history[index]
         savepoint()
-        pasta.paste(pasta.history[index], after, context)
+        pasta.paste(entry, after, context)
       elseif char == config.next_key and index < #pasta.history then
         index = index + 1
         entry = pasta.history[index]
         savepoint()
-        pasta.paste(pasta.history[index], after, context)
+        pasta.paste(entry, after, context)
       elseif char ~= config.next_key and char ~= config.prev_key then
         vim.api.nvim_feedkeys(char, 'i', true)
         break

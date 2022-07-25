@@ -33,6 +33,9 @@ function converters.indentation(entry, context)
 
   entry.regcontents = remove_base_indent(entry.regcontents)
   entry.regcontents = vim.tbl_map(function(content)
+    if string.match(content, '^%s*$') then
+      return ''
+    end
     return context.indent.next .. content
   end, entry.regcontents)
 
