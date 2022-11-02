@@ -117,8 +117,6 @@ end
 
 ---Pin or Unpin the current entry.
 function pasta.toggle_pin()
-  pasta.ensure()
-
   if pasta.pin then
     pasta.pin = nil
   else
