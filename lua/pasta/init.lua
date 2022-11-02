@@ -8,6 +8,7 @@ local highlight  = require('pasta.highlight')
 
 ---@class pasta.Config
 ---@field public converters? (fun(entry: pasta.Entry): pasta.Entry)[]
+---@field public prevent_diagnostics? boolean
 ---@field public paste_mode? boolean
 ---@field public next_key? string
 ---@field public prev_key? string
@@ -17,6 +18,7 @@ local config = {
     converters.indentation,
   },
   paste_mode = true,
+  prevent_diagnostics = false,
   next_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
   prev_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
 }
@@ -68,12 +70,18 @@ function pasta.start(after)
 
   pasta.running = true
 
-  local entries = kit.concat({ pasta.pin }, vim.tbl_filter(function(entry)
-    return entry.regtype ~= pasta.pin.regtype or table.concat(entry.regcontents, '\n') ~= table.concat(pasta.pin.regcontents, '\n')
-  end, pasta.history))
+  local entries = kit.concat({}, pasta.history)
+  if pasta.pin then
+    entries = vim.tbl_filter(function(entry)
+      return entry.regtype ~= pasta.pin.regtype or table.concat(entry.regcontents, '\n') ~= table.concat(pasta.pin.regcontents, '\n')
+    end, entries)
+    table.insert(entries, 1, pasta.pin)
+  end
 
   local ok, err = pcall(function()
-    vim.diagnostic.disable()
+    if config.prevent_diagnostics then
+      vim.diagnostic.disable()
+    end
     local savepoint = pasta.savepoint()
     local context = pasta.context(savepoint)
     local index = 1
