@@ -1,3 +1,4 @@
+local kit = require('pasta.kit')
 local converters = require('pasta.converters')
 local highlight  = require('pasta.highlight')
 
@@ -21,6 +22,9 @@ local config = {
 }
 
 local pasta = {}
+
+---@type pasta.Entry
+pasta.pin = nil
 
 ---@type pasta.Entry[]
 pasta.history = {}
@@ -58,28 +62,30 @@ end
 function pasta.start(after)
   pasta.ensure()
 
-  if #pasta.history == 0 then
+  if #pasta.history == 0 and not pasta.pin then
     return
   end
 
   pasta.running = true
+
+  local entries = kit.concat({ pasta.pin }, pasta.history)
   local ok, err = pcall(function()
     vim.diagnostic.disable()
     local savepoint = pasta.savepoint()
     local context = pasta.context(savepoint)
     local index = 1
-    local entry = pasta.history[index]
+    local entry = entries[index]
     pasta.paste(entry, after, context)
     while true do
       local char = vim.fn.nr2char(vim.fn.getchar())
       if char == config.prev_key and index > 1 then
         index = index - 1
-        entry = pasta.history[index]
+        entry = entries[index]
         savepoint()
         pasta.paste(entry, after, context)
-      elseif char == config.next_key and index < #pasta.history then
+      elseif char == config.next_key and index < #entries then
         index = index + 1
-        entry = pasta.history[index]
+        entry = entries[index]
         savepoint()
         pasta.paste(entry, after, context)
       elseif char ~= config.next_key and char ~= config.prev_key then
@@ -96,6 +102,17 @@ function pasta.start(after)
   pasta.running = false
   highlight.clear()
   vim.diagnostic.enable()
+end
+
+---Pin or Unpin the current entry.
+function pasta.toggle_pin()
+  pasta.ensure()
+
+  if pasta.pin then
+    pasta.pin = nil
+  else
+    pasta.pin = pasta.history[1]
+  end
 end
 
 ---Paste the text and redraw.

@@ -10,5 +10,9 @@ function mappings.P()
   pasta.start(false)
 end
 
+function mappings.toggle_pin()
+  pasta.toggle_pin()
+end
+
 return mappings
 
