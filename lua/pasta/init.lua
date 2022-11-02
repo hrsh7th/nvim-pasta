@@ -68,7 +68,10 @@ function pasta.start(after)
 
   pasta.running = true
 
-  local entries = kit.concat({ pasta.pin }, pasta.history)
+  local entries = kit.concat({ pasta.pin }, vim.tbl_filter(function(entry)
+    return entry.regtype ~= pasta.pin.regtype or table.concat(entry.regcontents, '\n') ~= table.concat(pasta.pin.regcontents, '\n')
+  end, pasta.history))
+
   local ok, err = pcall(function()
     vim.diagnostic.disable()
     local savepoint = pasta.savepoint()
