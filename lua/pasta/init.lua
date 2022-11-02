@@ -112,7 +112,9 @@ function pasta.start(after)
   end
   pasta.running = false
   highlight.clear()
-  vim.diagnostic.enable()
+  if config.prevent_diagnostics then
+    vim.diagnostic.enable()
+  end
 end
 
 ---Pin or Unpin the current entry.
