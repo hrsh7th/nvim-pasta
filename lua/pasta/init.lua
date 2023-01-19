@@ -1,4 +1,4 @@
-local kit = require('pasta.kit')
+local kit        = require('pasta.kit')
 local converters = require('pasta.converters')
 local highlight  = require('pasta.highlight')
 
@@ -82,10 +82,10 @@ function pasta.start(after)
     if config.prevent_diagnostics then
       vim.diagnostic.disable()
     end
-    local savepoint = pasta.savepoint()
-    local context = pasta.context(savepoint)
     local index = 1
     local entry = entries[index]
+    local savepoint = pasta.savepoint()
+    local context = pasta.context(savepoint, entry)
     pasta.paste(entry, after, context)
     while true do
       local char = vim.fn.nr2char(vim.fn.getchar())
@@ -191,14 +191,22 @@ end
 
 ---Create context.
 ---@param savepoint fun()
+---@param entry pasta.Entry
 ---@return { indent?: { curr: string, next: string } }
-function pasta.context(savepoint)
+function pasta.context(savepoint, entry)
   if vim.bo.indentexpr == '' then
     return {}
   end
 
   local curr_indent = string.match(vim.api.nvim_get_current_line(), '^%s+') or ''
-  vim.cmd(vim.api.nvim_replace_termcodes('normal! <Esc>o', true, true, true))
+  local first_line
+  for _, line in ipairs(entry.regcontents) do
+    if line ~= '' then
+      first_line = line
+      break
+    end
+  end
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>o', true, true, true) .. first_line:gsub('^%s+', ''), 'nx', true)
   local next_indent = string.rep(' ', vim.api.nvim_eval(vim.bo.indentexpr))
 
   if not vim.bo.expandtab then

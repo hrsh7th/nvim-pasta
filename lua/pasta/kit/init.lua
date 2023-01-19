@@ -1,13 +1,48 @@
 local kit = {}
 
+local is_thread = vim.is_thread()
+
+---Create gabage collection detector.
+---@param callback fun(...: any): any
+---@return userdata
+function kit.gc(callback)
+  local gc = newproxy(true)
+  if vim.is_thread() or os.getenv('NODE_ENV') == 'test' then
+    getmetatable(gc).__gc = callback
+  else
+    getmetatable(gc).__gc = vim.schedule_wrap(callback)
+  end
+  return gc
+end
+
+---Safe version of vim.schedule.
+---@param fn fun(...: any): any
+function kit.safe_schedule(fn)
+  if is_thread then
+    fn()
+  else
+    vim.schedule(fn)
+  end
+end
+
+---Safe version of vim.schedule_wrap.
+---@param fn fun(...: any): any
+function kit.safe_schedule_wrap(fn)
+  if is_thread then
+    return fn
+  else
+    return vim.schedule_wrap(fn)
+  end
+end
+
 ---Create unique id.
 ---@return integer
-kit.uuid = setmetatable({
-  uuid = 0,
+kit.unique_id = setmetatable({
+  unique_id = 0,
 }, {
   __call = function(self)
-    self.uuid = self.uuid + 1
-    return self.uuid
+    self.unique_id = self.unique_id + 1
+    return self.unique_id
   end,
 })
 
@@ -29,7 +64,11 @@ function kit.merge(tbl1, tbl2)
     end
     for k, v in pairs(tbl1) do
       if tbl2[k] == nil then
-        new_tbl[k] = v ~= vim.NIL and v or nil
+        if v ~= vim.NIL then
+          new_tbl[k] = v
+        else
+          new_tbl[k] = nil
+        end
       end
     end
     return new_tbl
@@ -110,7 +149,7 @@ end
 ---Get object path with default value.
 ---@generic T
 ---@param value table
----@param path string|string[]
+---@param path integer|string|(string|integer)[]
 ---@param default? T
 ---@return T
 function kit.get(value, path, default)

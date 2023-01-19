@@ -1,4 +1,17 @@
-local AsyncTask = require('pasta.kit.Async.AsyncTask')
+local kit = require('pasta.kit')
+local Async = require('pasta.kit.Async')
+
+---@alias pasta.kit.Vim.Keymap.Keys { keys: string, remap: boolean }
+---@alias pasta.kit.Vim.Keymap.KeysSpecifier string|{ keys: string, remap: boolean }
+
+---@param keys pasta.kit.Vim.Keymap.KeysSpecifier
+---@return pasta.kit.Vim.Keymap.Keys
+local function to_keys(keys)
+  if type(keys) == 'table' then
+    return keys
+  end
+  return { keys = keys, remap = false }
+end
 
 local Keymap = {}
 
@@ -11,35 +24,65 @@ function Keymap.termcodes(keys)
   return vim.api.nvim_replace_termcodes(keys, true, true, true)
 end
 
+---Set callback for consuming next typeahead.
+---@param callback fun()
+---@return pasta.kit.Async.AsyncTask
+function Keymap.next(callback)
+  return Keymap.send(''):next(callback)
+end
+
 ---Send keys.
----@param keys string
----@param mode string
-function Keymap.send(keys, mode)
-  local callback = Keymap.termcodes('<Cmd>lua require("pasta.kit.Vim.Keymap")._resolve()<CR>')
-  return AsyncTask.new(function(resolve)
-    table.insert(Keymap._callbacks, resolve)
-    if string.match(mode, 'i') then
-      vim.api.nvim_feedkeys(callback, 'in', true)
-      vim.api.nvim_feedkeys(keys, mode, true)
-    else
-      vim.api.nvim_feedkeys(keys, mode, true)
+---@param keys pasta.kit.Vim.Keymap.KeysSpecifier|pasta.kit.Vim.Keymap.KeysSpecifier[]
+---@param no_insert? boolean
+---@return pasta.kit.Async.AsyncTask
+function Keymap.send(keys, no_insert)
+  local unique_id = kit.unique_id()
+  return Async.new(function(resolve, _)
+    Keymap._callbacks[unique_id] = resolve
+
+    local callback = Keymap.termcodes(('<Cmd>lua require("pasta.kit.Vim.Keymap")._resolve(%s)<CR>'):format(unique_id))
+    if no_insert then
+      for _, keys_ in ipairs(kit.to_array(keys)) do
+        keys_ = to_keys(keys_)
+        vim.api.nvim_feedkeys(keys_.keys, keys_.remap and 'm' or 'n', true)
+      end
       vim.api.nvim_feedkeys(callback, 'n', true)
+    else
+      vim.api.nvim_feedkeys(callback, 'in', true)
+      for _, keys_ in ipairs(kit.reverse(kit.to_array(keys))) do
+        keys_ = to_keys(keys_)
+        vim.api.nvim_feedkeys(keys_.keys, 'i' .. (keys_.remap and 'm' or 'n'), true)
+      end
     end
+  end):catch(function()
+    Keymap._callbacks[unique_id] = nil
   end)
+end
+
+---Return sendabke keys with callback function.
+---@param callback fun(...: any): any
+---@return string
+function Keymap.to_sendable(callback)
+  local unique_id = kit.unique_id()
+  Keymap._callbacks[unique_id] = Async.async(callback)
+  return Keymap.termcodes(('<Cmd>lua require("pasta.kit.Vim.Keymap")._resolve(%s)<CR>'):format(unique_id))
 end
 
 ---Test spec helper.
 ---@param spec fun(): any
 function Keymap.spec(spec)
-  local task = AsyncTask.resolve():next(spec)
+  local task = Async.resolve():next(Async.async(spec))
   vim.api.nvim_feedkeys('', 'x', true)
   task:sync()
   collectgarbage('collect')
+  vim.wait(200)
 end
 
 ---Resolve running keys.
-function Keymap._resolve()
-  table.remove(Keymap._callbacks, 1)()
+---@param unique_id integer
+function Keymap._resolve(unique_id)
+  Keymap._callbacks[unique_id]()
+  Keymap._callbacks[unique_id] = nil
 end
 
 return Keymap

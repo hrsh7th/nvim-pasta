@@ -17,18 +17,6 @@ function Range.empty(range)
 end
 
 ---Convert range to utf8 from specified encoding.
----@param expr string|integer
----@param range pasta.kit.LSP.Range
----@param from_encoding? pasta.kit.LSP.PositionEncodingKind
----@return pasta.kit.LSP.Range
-function Range.to_vim(expr, range, from_encoding)
-  return {
-    start = Position.to_vim(expr, range.start, from_encoding),
-    ['end'] = Position.to_vim(expr, range['end'], from_encoding),
-  }
-end
-
----Convert range to utf8 from specified encoding.
 ---@param text_start string
 ---@param range pasta.kit.LSP.Range
 ---@param from_encoding? pasta.kit.LSP.PositionEncodingKind

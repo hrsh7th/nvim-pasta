@@ -9,14 +9,15 @@ local function _key(key)
   return key
 end
 
----@class pasta.kit.Cache
+---@class pasta.kit.App.Cache
 ---@field private keys table<string, boolean>
 ---@field private entries table<string, any>
 local Cache = {}
+Cache.__index = Cache
 
 ---Create new cache instance.
 function Cache.new()
-  local self = setmetatable({}, { __index = Cache })
+  local self = setmetatable({}, Cache)
   self.keys = {}
   self.entries = {}
   return self

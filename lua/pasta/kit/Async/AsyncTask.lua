@@ -1,23 +1,57 @@
-local Lua = require('pasta.kit.Lua')
+local uv = require('luv')
+local kit = require('pasta.kit')
 
----@class pasta.kit.Async.AsyncTask<T>: { value: T }
----@field private value T
+local is_thread = vim.is_thread()
+
+---@class pasta.kit.Async.AsyncTask
+---@field private value any
 ---@field private status pasta.kit.Async.AsyncTask.Status
+---@field private synced boolean
 ---@field private chained boolean
 ---@field private children (fun(): any)[]
 local AsyncTask = {}
 AsyncTask.__index = AsyncTask
 
----@alias pasta.kit.Async.AsyncTask.Status integer
-AsyncTask.Status = {}
-AsyncTask.Status.Pending = 0
-AsyncTask.Status.Fulfilled = 1
-AsyncTask.Status.Rejected = 2
+---Settle the specified task.
+---@param task pasta.kit.Async.AsyncTask
+---@param status pasta.kit.Async.AsyncTask.Status
+---@param value any
+local function settle(task, status, value)
+  task.status = status
+  task.value = value
+  for _, c in ipairs(task.children) do
+    c()
+  end
+
+  if status == AsyncTask.Status.Rejected then
+    if not task.chained and not task.synced then
+      local timer = uv.new_timer()
+      timer:start(
+        0,
+        0,
+        kit.safe_schedule_wrap(function()
+          timer:stop()
+          timer:close()
+          if not task.chained and not task.synced then
+            AsyncTask.on_unhandled_rejection(value)
+          end
+        end)
+      )
+    end
+  end
+end
+
+---@enum pasta.kit.Async.AsyncTask.Status
+AsyncTask.Status = {
+  Pending = 0,
+  Fulfilled = 1,
+  Rejected = 2,
+}
 
 ---Handle unhandled rejection.
 ---@param err any
 function AsyncTask.on_unhandled_rejection(err)
-  error(err)
+  error('AsyncTask.on_unhandled_rejection: ' .. tostring(err))
 end
 
 ---Return the value is AsyncTask or not.
@@ -35,15 +69,24 @@ function AsyncTask.all(tasks)
     local values = {}
     local count = 0
     for i, task in ipairs(tasks) do
-      AsyncTask.resolve(task)
-        :next(function(value)
-          values[i] = value
-          count = count + 1
-          if #tasks == count then
-            resolve(values)
-          end
-        end)
-        :catch(reject)
+      task:dispatch(function(value)
+        values[i] = value
+        count = count + 1
+        if #tasks == count then
+          resolve(values)
+        end
+      end, reject)
+    end
+  end)
+end
+
+---Resolve first resolved task.
+---@param tasks any[]
+---@return pasta.kit.Async.AsyncTask
+function AsyncTask.race(tasks)
+  return AsyncTask.new(function(resolve, reject)
+    for _, task in ipairs(tasks) do
+      task:dispatch(resolve, reject)
     end
   end)
 end
@@ -74,50 +117,26 @@ function AsyncTask.reject(v)
 end
 
 ---Create new async task object.
----@generic T
----@param runner fun(resolve: fun(value: T), reject: fun(err: any))
+---@param runner fun(resolve?: fun(value: any?), reject?: fun(err: any?))
 function AsyncTask.new(runner)
   local self = setmetatable({}, AsyncTask)
 
-  self.gc = Lua.gc(function()
-    if self.status == AsyncTask.Status.Rejected then
-      if not self.chained then
-        AsyncTask.on_unhandled_rejection(self.value)
-      end
-    end
-  end)
-
   self.value = nil
   self.status = AsyncTask.Status.Pending
+  self.synced = false
   self.chained = false
   self.children = {}
-  local ok, err = pcall(function()
-    runner(function(res)
-      if self.status ~= AsyncTask.Status.Pending then
-        return
-      end
-      self.status = AsyncTask.Status.Fulfilled
-      self.value = res
-      for _, c in ipairs(self.children) do
-        c()
-      end
-    end, function(err)
-      if self.status ~= AsyncTask.Status.Pending then
-        return
-      end
-      self.status = AsyncTask.Status.Rejected
-      self.value = err
-      for _, c in ipairs(self.children) do
-        c()
-      end
-    end)
+  local ok, err = pcall(runner, function(res)
+    if self.status == AsyncTask.Status.Pending then
+      settle(self, AsyncTask.Status.Fulfilled, res)
+    end
+  end, function(err)
+    if self.status == AsyncTask.Status.Pending then
+      settle(self, AsyncTask.Status.Rejected, err)
+    end
   end)
   if not ok then
-    self.status = AsyncTask.Status.Rejected
-    self.value = err
-    for _, c in ipairs(self.children) do
-      c()
-    end
+    settle(self, AsyncTask.Status.Rejected, err)
   end
   return self
 end
@@ -127,23 +146,58 @@ end
 ---@param timeout? number
 ---@return any
 function AsyncTask:sync(timeout)
-  vim.wait(timeout or 24 * 60 * 60 * 1000, function()
-    return self.status ~= AsyncTask.Status.Pending
-  end, 0)
+  self.synced = true
+
+  if is_thread then
+    while true do
+      if self.status ~= AsyncTask.Status.Pending then
+        break
+      end
+      uv.run('once')
+    end
+  else
+    vim.wait(timeout or 24 * 60 * 60 * 1000, function()
+      return self.status ~= AsyncTask.Status.Pending
+    end, 1, false)
+  end
   if self.status == AsyncTask.Status.Rejected then
-    error(self.value)
+    error(self.value, 2)
   end
   if self.status ~= AsyncTask.Status.Fulfilled then
-    error('AsyncTask:sync is timeout.')
+    error('AsyncTask:sync is timeout.', 2)
   end
   return self.value
+end
+
+---Await async task.
+---@param schedule? boolean
+---@return any
+function AsyncTask:await(schedule)
+  local Async = require('pasta.kit.Async')
+  local ok, res = pcall(Async.await, self)
+  if not ok then
+    error(res, 2)
+  end
+  if schedule then
+    Async.await(Async.schedule())
+  end
+  return res
+end
+
+---Return current state of task.
+---@return { status: pasta.kit.Async.AsyncTask.Status, value: any }
+function AsyncTask:state()
+  return {
+    status = self.status,
+    value = self.value,
+  }
 end
 
 ---Register next step.
 ---@param on_fulfilled fun(value: any): any
 function AsyncTask:next(on_fulfilled)
-  return self:_dispatch(on_fulfilled, function(err)
-    error(err)
+  return self:dispatch(on_fulfilled, function(err)
+    error(err, 2)
   end)
 end
 
@@ -151,7 +205,7 @@ end
 ---@param on_rejected fun(value: any): any
 ---@return pasta.kit.Async.AsyncTask
 function AsyncTask:catch(on_rejected)
-  return self:_dispatch(function(value)
+  return self:dispatch(function(value)
     return value
   end, on_rejected)
 end
@@ -160,23 +214,16 @@ end
 ---@param on_fulfilled fun(value: any): any
 ---@param on_rejected fun(err: any): any
 ---@return pasta.kit.Async.AsyncTask
-function AsyncTask:_dispatch(on_fulfilled, on_rejected)
+function AsyncTask:dispatch(on_fulfilled, on_rejected)
   self.chained = true
+
   local function dispatch(resolve, reject)
-    if self.status == AsyncTask.Status.Fulfilled then
-      local res = on_fulfilled(self.value)
-      if AsyncTask.is(res) then
-        res:next(resolve, reject)
-      else
-        resolve(res)
-      end
+    local on_next = self.status == AsyncTask.Status.Fulfilled and on_fulfilled or on_rejected
+    local res = on_next(self.value)
+    if AsyncTask.is(res) then
+      res:dispatch(resolve, reject)
     else
-      local res = on_rejected(self.value)
-      if AsyncTask.is(res) then
-        res:next(resolve, reject)
-      else
-        resolve(res)
-      end
+      resolve(res)
     end
   end
 
