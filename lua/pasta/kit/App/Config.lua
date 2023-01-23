@@ -77,20 +77,21 @@ end
 ---Create setup interface.
 ---@return fun(config: pasta.kit.App.Config.Schema)|{ filetype: fun(filetypes: string|string[], config: pasta.kit.App.Config.Schema), buffer: fun(bufnr: integer, config: pasta.kit.App.Config.Schema) }
 function Config:create_setup_interface()
-  return setmetatable({}, {
-    ---@param config pasta.kit.App.Config.Schema
-    __call = function(_, config)
-      self:global(config)
-    end,
+  return setmetatable({
     ---@param filetypes string|string[]
     ---@param config pasta.kit.App.Config.Schema
-    filetype = function(_, filetypes, config)
+    filetype = function(filetypes, config)
       self:filetype(filetypes, config)
     end,
     ---@param bufnr integer
     ---@param config pasta.kit.App.Config.Schema
-    buffer = function(_, bufnr, config)
+    buffer = function(bufnr, config)
       self:buffer(bufnr, config)
+    end,
+  }, {
+    ---@param config pasta.kit.App.Config.Schema
+    __call = function(_, config)
+      self:global(config)
     end,
   })
 end

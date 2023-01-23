@@ -27,6 +27,9 @@ require('pasta').setup {
   next_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
   prev_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
 }
+require('pasta').setup.filetype({ 'markdown', 'yaml' },  {
+  converters = {},
+})
 ```
 
 ### Plan

@@ -1,4 +1,5 @@
 local kit        = require('pasta.kit')
+local Config     = require('pasta.kit.App.Config')
 local converters = require('pasta.converters')
 local highlight  = require('pasta.highlight')
 
@@ -6,14 +7,16 @@ local highlight  = require('pasta.highlight')
 ---@field public regtype string
 ---@field public regcontents string[]
 
----@class pasta.Config
+---@class pasta.kit.App.Config.Schema
 ---@field public converters? (fun(entry: pasta.Entry): pasta.Entry)[]
 ---@field public prevent_diagnostics? boolean
 ---@field public paste_mode? boolean
 ---@field public next_key? string
 ---@field public prev_key? string
 
-local config = {
+local pasta = {}
+
+pasta.config = Config.new({
   converters = {
     converters.indentation,
   },
@@ -21,9 +24,9 @@ local config = {
   prevent_diagnostics = false,
   next_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
   prev_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
-}
+})
 
-local pasta = {}
+pasta.setup = pasta.config:create_setup_interface()
 
 ---@type pasta.Entry
 pasta.pin = nil
@@ -33,14 +36,6 @@ pasta.history = {}
 
 ---@type boolean
 pasta.running = false
-
----Setup pasta.
----@param config_ pasta.Config
-function pasta.setup(config_)
-  for k, v in pairs(config_) do
-    config[k] = v
-  end
-end
 
 ---Save yank history.
 ---@param regtype string
@@ -79,7 +74,7 @@ function pasta.start(after)
   end
 
   local ok, err = pcall(function()
-    if config.prevent_diagnostics then
+    if pasta.config:get().prevent_diagnostics then
       vim.diagnostic.disable()
     end
     local index = 1
@@ -89,17 +84,17 @@ function pasta.start(after)
     pasta.paste(entry, after, context)
     while true do
       local char = vim.fn.nr2char(vim.fn.getchar())
-      if char == config.prev_key and index > 1 then
+      if char == pasta.config:get().prev_key and index > 1 then
         index = index - 1
         entry = entries[index]
         savepoint()
         pasta.paste(entry, after, context)
-      elseif char == config.next_key and index < #entries then
+      elseif char == pasta.config:get().next_key and index < #entries then
         index = index + 1
         entry = entries[index]
         savepoint()
         pasta.paste(entry, after, context)
-      elseif char ~= config.next_key and char ~= config.prev_key then
+      elseif char ~= pasta.config:get().next_key and char ~= pasta.config:get().prev_key then
         vim.api.nvim_feedkeys(char, 'i', true)
         break
       end
@@ -112,7 +107,7 @@ function pasta.start(after)
   end
   pasta.running = false
   highlight.clear()
-  if config.prevent_diagnostics then
+  if pasta.config:get().prevent_diagnostics then
     vim.diagnostic.enable()
   end
 end
@@ -135,7 +130,7 @@ function pasta.paste(entry, after, context)
     regtype = entry.regtype,
     regcontents = { unpack(entry.regcontents) },
   }
-  for _, converter in ipairs(config.converters or {}) do
+  for _, converter in ipairs(pasta.config:get().converters or {}) do
     entry = converter(entry, context)
   end
 
@@ -145,7 +140,7 @@ function pasta.paste(entry, after, context)
 
   local paste = vim.o.paste
   local register = vim.fn.getreginfo(vim.v.register)
-  vim.o.paste = config.paste_mode
+  vim.o.paste = pasta.config:get().paste_mode
   vim.fn.setreg(vim.v.register, entry)
   if after then
     vim.cmd('normal! p')
