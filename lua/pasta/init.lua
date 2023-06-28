@@ -7,16 +7,19 @@ local highlight  = require('pasta.highlight')
 ---@field public regtype string
 ---@field public regcontents string[]
 
+---@class pasta.Context
+---@field public indent? { curr: string, next: string }
+
 ---@class pasta.kit.App.Config.Schema
----@field public converters? (fun(entry: pasta.Entry): pasta.Entry)[]
+---@field public converters? (fun(entry: pasta.Entry, context: pasta.Context): pasta.Entry)[]
 ---@field public prevent_diagnostics? boolean
 ---@field public paste_mode? boolean
 ---@field public next_key? string
 ---@field public prev_key? string
 
-local pasta = {}
+local pasta      = {}
 
-pasta.config = Config.new({
+pasta.config     = Config.new({
   converters = {
     converters.indentation,
   },
@@ -26,16 +29,16 @@ pasta.config = Config.new({
   prev_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
 })
 
-pasta.setup = pasta.config:create_setup_interface()
+pasta.setup      = pasta.config:create_setup_interface()
 
 ---@type pasta.Entry
-pasta.pin = nil
+pasta.pin        = nil
 
 ---@type pasta.Entry[]
-pasta.history = {}
+pasta.history    = {}
 
 ---@type boolean
-pasta.running = false
+pasta.running    = false
 
 ---Save yank history.
 ---@param regtype string
@@ -126,6 +129,7 @@ end
 ---@param entry pasta.Entry
 ---@param after boolean
 function pasta.paste(entry, after, context)
+  -- clone & normalize
   entry = {
     regtype = entry.regtype,
     regcontents = { unpack(entry.regcontents) },
@@ -133,7 +137,6 @@ function pasta.paste(entry, after, context)
   for _, converter in ipairs(pasta.config:get().converters or {}) do
     entry = converter(entry, context)
   end
-
   if entry.regtype ~= 'v' and #entry.regcontents > 1 and entry.regcontents[#entry.regcontents] == '' then
     table.remove(entry.regcontents, #entry.regcontents)
   end

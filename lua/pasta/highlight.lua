@@ -18,7 +18,7 @@ function highlight.cursor(pos)
   end)
   if not ok then
     vim.api.nvim_buf_set_extmark(0, highlight.ns.cursor, pos[1] - 1, pos[2], {
-      virt_text = { { ' ', 'PastaCursor'  } },
+      virt_text = { { ' ', 'PastaCursor' } },
       virt_text_pos = 'overlay',
       strict = false,
     })
