@@ -23,4 +23,7 @@ vim.api.nvim_set_hl(0, 'PastaCursor', {
   default = true,
   bg = 'Orange',
 })
-
+vim.api.nvim_set_hl(0, 'PastaEntry', {
+  default = true,
+  bg = 'Gray',
+})

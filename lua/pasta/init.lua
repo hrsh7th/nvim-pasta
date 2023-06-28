@@ -86,6 +86,7 @@ function pasta.start(after)
     local context = pasta.context(savepoint, entry)
     pasta.paste(entry, after, context)
     while true do
+      vim.cmd([[redraw]])
       local char = vim.fn.nr2char(vim.fn.getchar())
       if char == pasta.config:get().prev_key and index > 1 then
         index = index - 1
@@ -145,17 +146,14 @@ function pasta.paste(entry, after, context)
   local register = vim.fn.getreginfo(vim.v.register)
   vim.o.paste = pasta.config:get().paste_mode
   vim.fn.setreg(vim.v.register, entry)
-  if after then
-    vim.cmd('normal! p')
-  else
-    vim.cmd('normal! P')
-  end
+  vim.api.nvim_put(entry.regcontents, entry.regtype, after, false)
   vim.o.paste = paste
   vim.fn.setreg(vim.v.register, register)
 
   if vim.fn.reg_executing() == '' then
-    highlight.cursor(vim.api.nvim_win_get_cursor(0))
-    vim.cmd([[redraw!]])
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    highlight.entry(cursor, entry, after)
+    highlight.cursor(cursor)
   end
 end
 

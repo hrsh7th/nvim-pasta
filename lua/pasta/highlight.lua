@@ -2,6 +2,7 @@ local highlight = {}
 
 highlight.ns = {
   cursor = vim.api.nvim_create_namespace('pasta.highlight.cursor'),
+  entry = vim.api.nvim_create_namespace('pasta.highlight.contents'),
 }
 
 ---Highlight pseudo cursor.
@@ -25,9 +26,57 @@ function highlight.cursor(pos)
   end
 end
 
+---@param cursor { [1]: integer, [2]: integer }
+---@param entry pasta.Entry
+function highlight.entry(cursor, entry, after)
+  local highlights = {}
+  if entry.regtype == 'v' then
+    for i, line in ipairs(entry.regcontents) do
+      if i == 1 then
+        table.insert(highlights, {
+          row = cursor[1] + i - 2,
+          col = cursor[2] - #line + 1,
+          end_col = cursor[2]
+        })
+      else
+        table.insert(highlights, {
+          row = cursor[1] + i - 2,
+          col = 0,
+          end_col = #line,
+        })
+      end
+    end
+  elseif entry.regtype == 'V' then
+    for i, line in ipairs(entry.regcontents) do
+      table.insert(highlights, {
+        row = cursor[1] + i - 2,
+        col = 0,
+        end_col = #line,
+      })
+    end
+  elseif entry.regtype:find(vim.api.nvim_replace_termcodes('<C-v>', true, true, true), 1, true) then
+    for i, line in ipairs(entry.regcontents) do
+      table.insert(highlights, {
+        row = cursor[1] + i - 2,
+        col = cursor[2],
+        end_col = #line,
+      })
+    end
+  end
+
+  for _, hi in ipairs(highlights) do
+    vim.api.nvim_buf_set_extmark(0, highlight.ns.entry, hi.row, hi.col, {
+      end_row = hi.row,
+      end_col = hi.end_col,
+      hl_group = 'PastaEntry'
+    })
+  end
+end
+
 ---Clear highlights.
 function highlight.clear()
   vim.api.nvim_buf_clear_namespace(0, highlight.ns.cursor, 0, -1)
+  vim.api.nvim_buf_clear_namespace(0, highlight.ns.entry, 0, -1)
 end
 
 return highlight
