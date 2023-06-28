@@ -59,7 +59,7 @@ function highlight.entry(cursor, entry, after)
       table.insert(highlights, {
         row = cursor[1] + i - 2,
         col = cursor[2],
-        end_col = #line,
+        end_col = cursor[2] + #line,
       })
     end
   end
