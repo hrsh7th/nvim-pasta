@@ -169,9 +169,8 @@ function pasta.paste(entry, after, savepoint)
         return i .. line
       end)
       vim.fn.setreg(vim.v.register, entry)
-      vim.cmd('normal! ' .. (after and 'p' or 'P'))
+      vim.cmd('normal! ' .. (after and 'pk"_dd' or '"_ddP'))
     end)
-    keys = keys .. 'k"_dd'
     vim.api.nvim_feedkeys(keys, 'nx', true)
   else
     vim.fn.setreg(vim.v.register, entry)
