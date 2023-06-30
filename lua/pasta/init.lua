@@ -14,6 +14,7 @@ local highlight  = require('pasta.highlight')
 ---@field public converters? (fun(entry: pasta.Entry, context: pasta.Context): pasta.Entry)[]
 ---@field public prevent_diagnostics? boolean
 ---@field public paste_mode? boolean
+---@field public fix_cursor? boolean
 ---@field public next_key? string
 ---@field public prev_key? string
 
@@ -23,6 +24,7 @@ pasta.config     = Config.new({
   converters = {
     converters.indentation,
   },
+  fix_cursor = true,
   paste_mode = true,
   prevent_diagnostics = false,
   next_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
@@ -76,6 +78,12 @@ function pasta.start(after)
     table.insert(entries, 1, pasta.pin)
   end
 
+  local cursor_blend = vim.api.nvim_get_hl(0, { name = 'Cursor' }).blend
+  if pasta.config:get().fix_cursor then
+    vim.cmd('hi Cursor blend=100')
+    vim.cmd('set guicursor+=a:Cursor')
+  end
+
   local ok, err = pcall(function()
     if pasta.config:get().prevent_diagnostics then
       vim.diagnostic.disable()
@@ -106,6 +114,12 @@ function pasta.start(after)
     pasta.save(entry.regtype, entry.regcontents)
     vim.fn.setreg(vim.v.register, entry)
   end)
+
+  if pasta.config:get().fix_cursor then
+    vim.cmd(('hi Cursor blend=%s'):format(cursor_blend))
+    vim.cmd('set guicursor+=a:Cursor')
+  end
+
   if not ok then
     print(err)
   end
@@ -126,8 +140,9 @@ function pasta.toggle_pin()
   end
 end
 
----Paste the text and redraw.
+---Paste the text.
 ---@param entry pasta.Entry
+---@param context pasta.Context
 ---@param after boolean
 function pasta.paste(entry, after, context)
   -- clone & normalize
@@ -146,13 +161,18 @@ function pasta.paste(entry, after, context)
   local register = vim.fn.getreginfo(vim.v.register)
   vim.o.paste = pasta.config:get().paste_mode
   vim.fn.setreg(vim.v.register, entry)
-  vim.api.nvim_put(entry.regcontents, entry.regtype, after, false)
+  if after then
+    vim.cmd([[normal! p]])
+  else
+    vim.cmd([[normal! P]])
+  end
   vim.o.paste = paste
   vim.fn.setreg(vim.v.register, register)
 
   if vim.fn.reg_executing() == '' then
     local cursor = vim.api.nvim_win_get_cursor(0)
-    highlight.entry(cursor, entry, after)
+    vim.api.nvim_win_set_cursor(0, cursor)
+    highlight.entry(cursor, entry)
     highlight.cursor(cursor)
   end
 end
@@ -164,6 +184,7 @@ function pasta.savepoint()
   local cursor = vim.fn.getcurpos()
   local changenr = vim.fn.changenr()
   local is_visual = pasta.is_visual()
+  local view = vim.fn.winsaveview()
   return function()
     if vim.fn.changenr() ~= changenr then
       vim.cmd(([[undo %s]]):format(changenr))
@@ -172,6 +193,7 @@ function pasta.savepoint()
       vim.cmd([[normal! gv]])
     end
     vim.fn.setpos('.', cursor)
+    vim.fn.winrestview(view)
   end
 end
 

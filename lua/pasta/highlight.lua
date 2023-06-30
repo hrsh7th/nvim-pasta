@@ -28,22 +28,30 @@ end
 
 ---@param cursor { [1]: integer, [2]: integer }
 ---@param entry pasta.Entry
-function highlight.entry(cursor, entry, after)
+function highlight.entry(cursor, entry)
   local highlights = {}
   if entry.regtype == 'v' then
-    for i, line in ipairs(entry.regcontents) do
-      if i == 1 then
-        table.insert(highlights, {
-          row = cursor[1] + i - 2,
-          col = cursor[2] - #line + 1,
-          end_col = cursor[2]
-        })
-      else
-        table.insert(highlights, {
-          row = cursor[1] + i - 2,
-          col = 0,
-          end_col = #line,
-        })
+    if #entry.regcontents == 1 then
+      table.insert(highlights, {
+        row = cursor[1] - 1,
+        col = cursor[2] - #entry.regcontents[1] + 1,
+        end_col = cursor[2],
+      })
+    else
+      for i, line in ipairs(entry.regcontents) do
+        if i == 1 then
+          table.insert(highlights, {
+            row = cursor[1] + i - 2,
+            col = cursor[2] + 1,
+            end_col = cursor[2] + #line,
+          })
+        else
+          table.insert(highlights, {
+            row = cursor[1] + i - 2,
+            col = 0,
+            end_col = #line,
+          })
+        end
       end
     end
   elseif entry.regtype == 'V' then
