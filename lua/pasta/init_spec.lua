@@ -7,7 +7,9 @@ describe('pasta', function()
       bdelete!
       call setline(1, ['foo', 'bar', 'baz', ''])
     ]])
-    pasta.setup { converters = {} }
+    pasta.setup {
+      fix_indent = false,
+    }
   end
 
   local check = function(entry, prepare)

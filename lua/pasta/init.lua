@@ -1,46 +1,46 @@
-local kit        = require('pasta.kit')
-local Config     = require('pasta.kit.App.Config')
-local converters = require('pasta.converters')
-local highlight  = require('pasta.highlight')
+local kit       = require('pasta.kit')
+local Keymap    = require('pasta.kit.Vim.Keymap')
+local Config    = require('pasta.kit.App.Config')
+local highlight = require('pasta.highlight')
+local indent    = require('pasta.indent')
 
 ---@class pasta.Entry
 ---@field public regtype string
 ---@field public regcontents string[]
 
----@class pasta.Context
----@field public indent? { curr: string, next: string }
-
 ---@class pasta.kit.App.Config.Schema
----@field public converters? (fun(entry: pasta.Entry, context: pasta.Context): pasta.Entry)[]
 ---@field public prevent_diagnostics? boolean
 ---@field public paste_mode? boolean
 ---@field public fix_cursor? boolean
+---@field public fix_indent? boolean
 ---@field public next_key? string
 ---@field public prev_key? string
 
-local pasta      = {}
+---@class pasta.Savepoint
+---@field __call fun(): nil
+---@field visualmode string
 
-pasta.config     = Config.new({
-  converters = {
-    converters.indentation,
-  },
+local pasta     = {}
+
+pasta.config    = Config.new({
   fix_cursor = true,
-  paste_mode = true,
+  fix_indent = true,
+  paste_mode = false,
   prevent_diagnostics = false,
   next_key = vim.api.nvim_replace_termcodes('<C-p>', true, true, true),
   prev_key = vim.api.nvim_replace_termcodes('<C-n>', true, true, true),
 })
 
-pasta.setup      = pasta.config:create_setup_interface()
+pasta.setup     = pasta.config:create_setup_interface()
 
 ---@type pasta.Entry
-pasta.pin        = nil
+pasta.pin       = nil
 
 ---@type pasta.Entry[]
-pasta.history    = {}
+pasta.history   = {}
 
 ---@type boolean
-pasta.running    = false
+pasta.running   = false
 
 ---Save yank history.
 ---@param regtype string
@@ -91,8 +91,7 @@ function pasta.start(after)
     local index = 1
     local entry = entries[index]
     local savepoint = pasta.savepoint()
-    local context = pasta.context(savepoint, entry)
-    pasta.paste(entry, after, context)
+    pasta.paste(entry, after, savepoint)
     while true do
       vim.cmd([[redraw]])
       local char = vim.fn.nr2char(vim.fn.getchar())
@@ -100,12 +99,12 @@ function pasta.start(after)
         index = index - 1
         entry = entries[index]
         savepoint()
-        pasta.paste(entry, after, context)
+        pasta.paste(entry, after, savepoint)
       elseif char == pasta.config:get().next_key and index < #entries then
         index = index + 1
         entry = entries[index]
         savepoint()
-        pasta.paste(entry, after, context)
+        pasta.paste(entry, after, savepoint)
       elseif char ~= pasta.config:get().next_key and char ~= pasta.config:get().prev_key then
         vim.api.nvim_feedkeys(char, 'i', true)
         break
@@ -142,59 +141,83 @@ end
 
 ---Paste the text.
 ---@param entry pasta.Entry
----@param context pasta.Context
 ---@param after boolean
-function pasta.paste(entry, after, context)
+---@param savepoint pasta.Savepoint
+function pasta.paste(entry, after, savepoint)
   -- clone & normalize
   entry = {
     regtype = entry.regtype,
     regcontents = { unpack(entry.regcontents) },
   }
-  for _, converter in ipairs(pasta.config:get().converters or {}) do
-    entry = converter(entry, context)
-  end
   if entry.regtype ~= 'v' and #entry.regcontents > 1 and entry.regcontents[#entry.regcontents] == '' then
     table.remove(entry.regcontents, #entry.regcontents)
   end
 
   local paste = vim.o.paste
-  local register = vim.fn.getreginfo(vim.v.register)
   vim.o.paste = pasta.config:get().paste_mode
-  vim.fn.setreg(vim.v.register, entry)
-  if after then
-    vim.cmd([[normal! p]])
+
+  if pasta.config:get().fix_indent and entry.regtype == 'V' and (savepoint.visualmode == 'V' or savepoint.visualmode == '') then
+    local keys = ''
+    if savepoint.visualmode == 'V' then
+      keys = keys .. '"_dk'
+    end
+    keys = keys .. (after and 'o' or 'O') .. vim.keycode('_<Esc>==')
+    keys = keys .. Keymap.to_sendable(function()
+      local i = vim.api.nvim_get_current_line():match('^(%s*)')
+      entry.regcontents = indent.trim(entry.regcontents)
+      entry.regcontents = kit.map(entry.regcontents, function(line)
+        return i .. line
+      end)
+      vim.fn.setreg(vim.v.register, entry)
+      vim.cmd('normal! ' .. (after and 'p' or 'P'))
+    end)
+    keys = keys .. 'k"_dd'
+    vim.api.nvim_feedkeys(keys, 'nx', true)
   else
-    vim.cmd([[normal! P]])
+    vim.fn.setreg(vim.v.register, entry)
+    vim.api.nvim_feedkeys((after and 'p' or 'P'), 'nx', true)
   end
+
   vim.o.paste = paste
-  vim.fn.setreg(vim.v.register, register)
 
   if vim.fn.reg_executing() == '' then
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    vim.api.nvim_win_set_cursor(0, cursor)
-    highlight.entry(cursor, entry)
-    highlight.cursor(cursor)
+    pcall(function()
+      local cursor = vim.api.nvim_win_get_cursor(0)
+      highlight.entry(cursor, entry)
+      highlight.cursor(cursor)
+    end)
   end
 end
 
 ---Create savepoint.
----@return function
+---@return pasta.Savepoint
 function pasta.savepoint()
   vim.o.undolevels = vim.o.undolevels
   local cursor = vim.fn.getcurpos()
   local changenr = vim.fn.changenr()
-  local is_visual = pasta.is_visual()
+  local visualmode = pasta.is_visual() and vim.fn.visualmode() or ''
   local view = vim.fn.winsaveview()
-  return function()
-    if vim.fn.changenr() ~= changenr then
-      vim.cmd(([[undo %s]]):format(changenr))
-    end
-    if is_visual then
-      vim.cmd([[normal! gv]])
-    end
-    vim.fn.setpos('.', cursor)
-    vim.fn.winrestview(view)
+  local s, e
+  if visualmode ~= '' then
+    vim.cmd([[normal! o]])
+    e = vim.api.nvim_win_get_cursor(0)
+    vim.cmd([[normal! o]])
+    s = vim.api.nvim_win_get_cursor(0)
   end
+  return setmetatable({
+    visualmode = visualmode,
+  }, {
+    __call = function()
+      if vim.fn.changenr() ~= changenr then
+        vim.cmd(([[undo %s]]):format(changenr))
+      end
+      if visualmode ~= '' then
+        vim.cmd(('normal! %sG%s|v%sG%s|'):format(s[1], s[2] + 1, e[1], e[2] + 1))
+      end
+      vim.fn.setpos('.', cursor)
+      vim.fn.winrestview(view)
+    end
+  })
 end
 
 ---Ensure recent register.
@@ -205,40 +228,6 @@ function pasta.ensure()
       pasta.save(reginfo.regtype, reginfo.regcontents)
     end
   end
-end
-
----Create context.
----@param savepoint fun()
----@param entry pasta.Entry
----@return { indent?: { curr: string, next: string } }
-function pasta.context(savepoint, entry)
-  if vim.bo.indentexpr == '' then
-    return {}
-  end
-
-  local curr_indent = string.match(vim.api.nvim_get_current_line(), '^%s+') or ''
-  local first_line
-  for _, line in ipairs(entry.regcontents) do
-    if line ~= '' then
-      first_line = line
-      break
-    end
-  end
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>o', true, true, true) .. first_line:gsub('^%s+', ''), 'nx', true)
-  local next_indent = string.rep(' ', vim.api.nvim_eval(vim.bo.indentexpr))
-
-  if not vim.bo.expandtab then
-    next_indent = next_indent:gsub(string.rep(' ', vim.bo.shiftwidth ~= 0 and vim.bo.shiftwidth or vim.bo.tabstop), '\t')
-  end
-
-  local context = {
-    indent = {
-      curr = curr_indent,
-      next = next_indent,
-    },
-  }
-  savepoint()
-  return context
 end
 
 ---Return the mode is visual or not.
