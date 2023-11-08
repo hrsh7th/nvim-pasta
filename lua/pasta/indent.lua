@@ -65,18 +65,18 @@ end
 ---@return integer
 function Indent.get_next_indent_width(text)
   vim.v.lnum = vim.fn.line('.')
-  local ok, width = pcall(vim.fn.eval, vim.bo.indentexpr) ---@type nil, integer
+  local ok, width = false, nil
   Cursor.safe(function()
+    local pos = vim.fn.getpos('.')
     local buf = vim.api.nvim_get_current_buf()
     vim.fn.appendbufline(buf, vim.fn.line('.'), text or '')
-    local pos = vim.fn.getpos('.')
     pos[2] = pos[2] + 1
     vim.fn.setpos('.', pos)
     vim.v.lnum = vim.fn.line('.')
     ok, width = pcall(vim.fn.eval, vim.bo.indentexpr)
-    vim.fn.deletebufline(buf, vim.fn.line('.'))
+    vim.fn.deletebufline(buf, pos[2])
+    width = (ok and width) or vim.fn.indent(vim.fn.line('.'))
   end)
-  width = (ok and width) or vim.fn.indent(vim.fn.line('.'))
   return width
 end
 
