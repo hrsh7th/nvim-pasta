@@ -12,9 +12,7 @@ local group = vim.api.nvim_create_augroup('pasta', {
 vim.api.nvim_create_autocmd('TextYankPost', {
   group = group,
   callback = function()
-    if vim.v.event.regname == '' or vim.v.event.regname == vim.v.register  then
-      pasta.save(vim.v.event.regtype, vim.v.event.regcontents)
-    end
+    pasta.add_entry(vim.v.event)
   end
 })
 

@@ -1,15 +1,12 @@
 local pasta = require('pasta')
 
 describe('pasta', function()
-
   local function reset()
     vim.cmd([[
       bdelete!
       call setline(1, ['foo', 'bar', 'baz', ''])
     ]])
-    pasta.setup {
-      fix_indent = false,
-    }
+    pasta.config.indent_fix = false
   end
 
   local check = function(entry, prepare)
@@ -30,9 +27,9 @@ describe('pasta', function()
     -- pasta.
     reset()
     prepare(function()
-      pasta.paste(entry, true)
+      pasta.paste(entry, true, false)
     end, function()
-      pasta.paste(entry, false)
+      pasta.paste(entry, false, false)
     end)
 
     assert.are.same(state, {
@@ -67,7 +64,7 @@ describe('pasta', function()
   }) do
     for _, regcontents in ipairs({
       { '' },
-      { '', '' },
+      { '',     '' },
       { 'text' },
       { 'text', 'text' },
       { 'text', 'text', '' },
@@ -75,7 +72,7 @@ describe('pasta', function()
       for _, regtype in ipairs({
         'v',
         'V',
-        vim.api.nvim_replace_termcodes('<C-v>', true, true, true),
+        ''
       }) do
         it(('should be the same as native (p: %s)'):format(vim.inspect({
           position = position,
