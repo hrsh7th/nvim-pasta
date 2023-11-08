@@ -120,7 +120,7 @@ function pasta.start(after)
         state.indent_fix = not state.indent_fix
         state.updated = false
       else
-        vim.api.nvim_feedkeys(char, 'nix', true)
+        vim.api.nvim_feedkeys(char, 'ni', true)
         break
       end
       if not state.updated then
