@@ -12,12 +12,8 @@ This plugin provides the following functionality.
 ### Setup
 
 ```lua
-vim.keymap.set({ 'n', 'x' }, 'p', function()
-  require('pasta').start(true)
-end)
-vim.keymap.set({ 'n', 'x' }, 'P', function()
-  require('pasta').start(false)
-end)
+vim.keymap.set({ 'n', 'x' }, 'p', require('pasta.mapping').p)
+vim.keymap.set({ 'n', 'x' }, 'P', require('pasta.mapping').P)
 
 -- This is the default. You can omit `setup` call if you don't want to change this. 
 require('pasta').config.next_key = vim.keycode('<C-n>')

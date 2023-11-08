@@ -9,8 +9,8 @@ local VisualMode = require('pasta.visual_mode')
 ---@field regcontents string[]
 
 local config = {
-  next_key = vim.keycode('<C-j>'),
-  prev_key = vim.keycode('<C-k>'),
+  next_key = vim.keycode('<C-n>'),
+  prev_key = vim.keycode('<C-p>'),
   indent_key = vim.keycode(','),
   indent_fix = true,
 }
