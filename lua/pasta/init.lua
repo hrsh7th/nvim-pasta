@@ -126,6 +126,7 @@ function pasta.start(after)
         elseif char == config.indent_key then
           state.indent_fix = not state.indent_fix
           state.updated = false
+          savepoint()
         else
           vim.api.nvim_feedkeys(char, 'ni', true)
           break
