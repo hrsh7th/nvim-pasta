@@ -79,7 +79,6 @@ function pasta.paste(entry, after, indent_fix)
 
   -- highlight pseudo cursor and pasted region.
   Highlight.set(vim.api.nvim_win_get_cursor(0), entry, visual)
-  vim.cmd.redraw()
 end
 
 ---Start pasting mode.
@@ -96,25 +95,31 @@ function pasta.start(after)
   Cursor.hide(function()
     local state = {
       index = 1,
-      updated = true,
+      updated = false,
       indent_fix = config.indent_fix,
     }
 
-    pasta.paste(pasta.history[state.index], after, state.indent_fix)
-    state.updated = false
     while true do
+      if not state.updated then
+        pasta.paste(pasta.history[state.index], after, state.indent_fix)
+        vim.cmd.redraw()
+        state.updated = true
+      end
+
       local char = vim.fn.nr2char(vim.fn.getchar())
       if char == config.next_key then
         local index = math.min(state.index + 1, #pasta.history)
         if index ~= state.index then
           state.index = index
           state.updated = false
+          savepoint()
         end
       elseif char == config.prev_key then
         local index = math.max(state.index - 1, 1)
         if index ~= state.index then
           state.index = index
           state.updated = false
+          savepoint()
         end
       elseif char == config.indent_key then
         state.indent_fix = not state.indent_fix
@@ -122,11 +127,6 @@ function pasta.start(after)
       else
         vim.api.nvim_feedkeys(char, 'ni', true)
         break
-      end
-      if not state.updated then
-        savepoint()
-        pasta.paste(pasta.history[state.index], after, state.indent_fix)
-        state.updated = true
       end
     end
   end)
