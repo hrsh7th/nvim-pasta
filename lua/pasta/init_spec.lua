@@ -6,13 +6,15 @@ describe('pasta', function()
       bdelete!
       call setline(1, ['foo', 'bar', 'baz', ''])
     ]])
+    vim.g.undolevels = vim.g.undolevels
+    pasta.history = {}
     pasta.config.indent_fix = false
   end
 
-  local check = function(entry, prepare)
+  local check = function(entry, run_spec)
     -- native.
     reset()
-    prepare(function()
+    run_spec(function()
       vim.fn.setreg(vim.v.register, table.concat(entry.regcontents, '\n'), entry.regtype)
       vim.cmd('normal! p')
     end, function()
@@ -26,7 +28,7 @@ describe('pasta', function()
 
     -- pasta.
     reset()
-    prepare(function()
+    run_spec(function()
       pasta.paste(entry, true, false)
     end, function()
       pasta.paste(entry, false, false)
@@ -38,30 +40,27 @@ describe('pasta', function()
     })
   end
 
-  for _, position in ipairs({
-    'normal! 1G1|',
-    'normal! 1G2|',
-    'normal! 1G3|',
-    'normal! 2G1|',
-    'normal! 2G2|',
-    'normal! 2G3|',
-    'normal! 3G1|',
-    'normal! 3G2|',
-    'normal! 3G3|',
-    'normal! 4G1|',
-    'normal! 4G1|',
-    'normal! 1GV',
-    'normal! 2GV',
-    'normal! 3GV',
-    'normal! 4GV',
-    'normal! 1GVj',
-    'normal! 2GVj',
-    'normal! 3GVj',
-    'normal! 1G1|v3|',
-    'normal! 2G1|v3|',
-    'normal! 4G1|v3|',
-    'normal! 4Gv',
-  }) do
+  local positions = {}
+  -- normal.
+  for _, lnum in ipairs({ 1, 2, 3, 4 }) do
+    for col in ipairs({ 1, 2, 3, 4 }) do
+      table.insert(positions, ('normal! %sG%s|'):format(lnum, col))
+    end
+  end
+  -- visual
+  for _, v in ipairs({ 'v', 'V', '' }) do
+    for _, lnum in ipairs({ 1, 2, 3, 4 }) do
+      for col in ipairs({ 1, 2, 3, 4 }) do
+        for lnum_e = lnum, 4 do
+          for col_e = col, 4 do
+            table.insert(positions, ('normal! %sG%s|%s%sG%s|'):format(lnum, col, v, lnum_e, col_e))
+          end
+        end
+      end
+    end
+  end
+
+  for _, position in ipairs(positions) do
     for _, regcontents in ipairs({
       { '' },
       { '',     '' },
