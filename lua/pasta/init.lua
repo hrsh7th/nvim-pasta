@@ -128,7 +128,7 @@ function pasta.start(after)
           state.updated = false
           savepoint()
         else
-          vim.api.nvim_feedkeys(char, 'ni', true)
+          vim.api.nvim_feedkeys(char, 'i', true)
           break
         end
       end
