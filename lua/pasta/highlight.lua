@@ -1,3 +1,7 @@
+local keycode = vim.keycode or function(key)
+  return vim.api.nvim_replace_termcodes(key, true, true, true)
+end
+
 local Highlight = {}
 
 Highlight.ns = {
@@ -101,7 +105,7 @@ function Highlight.set_entry(cursor, entry, visual)
         end_col = #line,
       })
     end
-  elseif entry.regtype:find(vim.keycode('<C-v>'), 1, true) then
+  elseif entry.regtype:find(keycode('<C-v>'), 1, true) then
     for i, line in ipairs(entry.regcontents) do
       table.insert(highlights, {
         row = cursor[1] + i - 2,

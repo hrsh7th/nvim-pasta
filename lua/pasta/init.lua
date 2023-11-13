@@ -1,3 +1,7 @@
+local keycode = vim.keycode or function(key)
+  return vim.api.nvim_replace_termcodes(key, true, true, true)
+end
+
 local Entry = require('pasta.entry')
 local Cursor = require('pasta.cursor')
 local Indent = require('pasta.indent')
@@ -10,9 +14,9 @@ local VisualMode = require('pasta.visual_mode')
 ---@field regcontents string[]
 
 local config = {
-  next_key = vim.keycode('<C-n>'),
-  prev_key = vim.keycode('<C-p>'),
-  indent_key = vim.keycode(','),
+  next_key = keycode('<C-n>'),
+  prev_key = keycode('<C-p>'),
+  indent_key = keycode(','),
   indent_fix = true,
 }
 
