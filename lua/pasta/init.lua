@@ -39,12 +39,13 @@ function pasta.add_entry(e)
     regtype = e.regtype,
     regcontents = e.regcontents
   })
-  pasta.history = vim.iter(pasta.history):filter(function(entry)
-    if pasta.history[1] == entry then
-      return true
+  local new_history = {}
+  for _, entry in ipairs(pasta.history) do
+    if pasta.history[1] == entry or not Entry.is_same(pasta.history[1], entry) then
+      table.insert(new_history, entry)
     end
-    return not Entry.is_same(pasta.history[1], entry)
-  end):totable()
+  end
+  pasta.history = new_history
 end
 
 ---Paste entry.
