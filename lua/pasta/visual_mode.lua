@@ -21,16 +21,15 @@ function VisualMode.savepoint()
     if not visual then
       return
     end
-    vim.cmd.normal({
-      ('%sG%s|v%sG%s|'):format(
-        range.finish[1],
-        range.finish[2] + 1,
-        visual,
-        range.start[1],
-        range.start[2] + 1
-      ),
-      bang = true
-    })
+    vim.cmd(([[
+      normal! %sG%s|%s%sG%s|
+    ]]):format(
+      range.finish[1],
+      range.finish[2] + 1,
+      visual,
+      range.start[1],
+      range.start[2] + 1
+    ))
   end
 end
 
