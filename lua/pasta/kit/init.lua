@@ -15,6 +15,47 @@ function kit.gc(callback)
   return gc
 end
 
+do
+  local MpackFunctionType = {}
+  MpackFunctionType.__index = MpackFunctionType
+
+  local pack = vim.mpack.Packer({
+    ext = {
+      [MpackFunctionType] = function(data)
+        return 5, string.dump(data.fn)
+      end
+    }
+  })
+
+  local unpack = vim.mpack.Unpacker({
+    ext = {
+      [5] = function(_, data)
+        return loadstring(data)
+      end
+    }
+  })
+
+  ---Serialize object like values.
+  ---@param target any
+  ---@return string
+  function kit.pack(target)
+    local copy = kit.merge({}, target)
+    kit.traverse(copy, function(v, parent, path)
+      if type(v) == 'function' then
+        kit.set(parent, path, setmetatable({ fn = v }, MpackFunctionType))
+      end
+    end)
+    return pack(copy)
+  end
+
+  ---Deserialize object like values.
+  ---@param target string
+  ---@return any
+  function kit.unpack(target)
+    return unpack(target)
+  end
+end
+
 ---Bind arguments for function.
 ---@param fn fun(...: any): any
 ---@vararg any
@@ -44,6 +85,22 @@ function kit.safe_schedule_wrap(fn)
   else
     return vim.schedule_wrap(fn)
   end
+end
+
+---Traverse object tree.
+---@param root_node any
+---@param root_callback fun(v: any, parent: table, path: string[])
+function kit.traverse(root_node, root_callback)
+  local function traverse(node, callback, parent, path)
+    if type(node) == 'table' then
+      for k, v in pairs(node) do
+        traverse(v, callback, node, kit.concat(path, { k }))
+      end
+    else
+      callback(node, parent, path)
+    end
+  end
+  traverse(root_node, root_callback, nil, {})
 end
 
 ---Create unique id.
@@ -203,7 +260,26 @@ function kit.get(value, path, default)
       return default
     end
   end
-  return result or default
+  if result == nil then
+    return default
+  end
+  return result
+end
+
+---Set object path with new value.
+---@param value table
+---@param path integer|string|(string|integer)[]
+---@param new_value any
+function kit.set(value, path, new_value)
+  local current = value
+  for i = 1, #path - 1 do
+    local key = path[i]
+    if type(current[key]) ~= 'table' then
+      error('The specified path is not a table.')
+    end
+    current = current[key]
+  end
+  current[path[#path]] = new_value
 end
 
 return kit

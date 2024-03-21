@@ -139,7 +139,6 @@ function pasta.start(after)
       end
     end)
   end)
-
   Highlight.clear()
   pasta.running = false
 end

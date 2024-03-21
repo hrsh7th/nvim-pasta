@@ -1,13 +1,14 @@
 local uv = require('luv')
 local AsyncTask = require('pasta.kit.Async.AsyncTask')
 
----@class pasta.kit.Thread.WorkerOption
+---@class pasta.kit.Async.WorkerOption
 ---@field public runtimepath string[]
 
+---@class pasta.kit.Async.Worker
 local Worker = {}
 Worker.__index = Worker
 
----Create a new thread.
+---Create a new worker.
 ---@param runner function
 function Worker.new(runner)
   local self = setmetatable({}, Worker)

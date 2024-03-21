@@ -12,7 +12,7 @@ local function encode(v)
   return mpack.encode(v)
 end
 
----@class pasta.kit.Thread.Server.Session
+---@class pasta.kit.Async.RPC.Session
 ---@field private mpack_session any
 ---@field private stdin uv.uv_pipe_t
 ---@field private stdout uv.uv_pipe_t
@@ -22,7 +22,7 @@ local Session = {}
 Session.__index = Session
 
 ---Create new session.
----@return pasta.kit.Thread.Server.Session
+---@return pasta.kit.Async.RPC.Session
 function Session.new()
   local self = setmetatable({}, Session)
   self.mpack_session = mpack.Session({ unpack = mpack.Unpacker() })
@@ -65,26 +65,26 @@ function Session:connect(stdin, stdout)
         end)
       elseif type == 'notification' then
         local method, params = method_or_error, params_or_result
-        Async.run(function()
-          self._on_notification[method](params)
-        end):catch(function(e)
-          self:notify('$/error', { error = e })
-        end)
+        self._on_notification[method](params)
       elseif type == 'response' then
         local callback, err_, res = id_or_cb, method_or_error, params_or_result
-        Async.run(function()
-          if err_ == mpack.NIL then
-            callback(nil, res)
-          else
-            callback(err_, nil)
-          end
-        end):catch(function(e)
-          self:notify('$/error', { error = e })
-        end)
+        if err_ == mpack.NIL then
+          callback(nil, res)
+        else
+          callback(err_, nil)
+        end
       end
       offset = new_offset
     end
   end)
+end
+
+---Close session.
+function Session:close()
+  self.stdin:close()
+  self.stdout:close()
+  self.stdin = nil
+  self.stdout = nil
 end
 
 ---Add request handler.
