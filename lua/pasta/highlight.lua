@@ -116,12 +116,14 @@ function Highlight.set_entry(cursor, entry, visual)
   end
 
   for _, hi in ipairs(highlights) do
-    vim.api.nvim_buf_set_extmark(0, Highlight.ns.entry, hi.row, hi.col, {
-      end_row = hi.row,
-      end_col = hi.end_col,
-      hl_group = 'PastaEntry',
-      strict = false,
-    })
+    pcall(function()
+      vim.api.nvim_buf_set_extmark(0, Highlight.ns.entry, hi.row, hi.col, {
+        end_row = hi.row,
+        end_col = hi.end_col,
+        hl_group = 'PastaEntry',
+        strict = false,
+      })
+    end)
   end
 end
 

@@ -1,6 +1,7 @@
 local kit = {}
 
-local is_thread = vim.is_thread()
+local islist = vim.islist or vim.tbl_islist
+local isempty = vim.tbl_isempty
 
 ---Create gabage collection detector.
 ---@param callback fun(...: any): any
@@ -16,10 +17,12 @@ function kit.gc(callback)
 end
 
 do
+  local mpack = require('mpack')
+
   local MpackFunctionType = {}
   MpackFunctionType.__index = MpackFunctionType
 
-  local pack = vim.mpack.Packer({
+  kit.Packer = mpack.Packer({
     ext = {
       [MpackFunctionType] = function(data)
         return 5, string.dump(data.fn)
@@ -27,7 +30,7 @@ do
     }
   })
 
-  local unpack = vim.mpack.Unpacker({
+  kit.Unpacker = mpack.Unpacker({
     ext = {
       [5] = function(_, data)
         return loadstring(data)
@@ -39,20 +42,29 @@ do
   ---@param target any
   ---@return string
   function kit.pack(target)
-    local copy = kit.merge({}, target)
-    kit.traverse(copy, function(v, parent, path)
-      if type(v) == 'function' then
-        kit.set(parent, path, setmetatable({ fn = v }, MpackFunctionType))
-      end
-    end)
-    return pack(copy)
+    if type(target) == 'nil' then
+      return kit.Packer(mpack.NIL)
+    end
+    if type(target) == 'table' then
+      local copy = kit.clone(target)
+      kit.traverse(copy, function(v, parent, path)
+        if type(v) == 'function' then
+          if parent == nil then
+            error('The root value cannot be a function.')
+          end
+          kit.set(parent, path, setmetatable({ fn = v }, MpackFunctionType))
+        end
+      end)
+      return kit.Packer(copy)
+    end
+    return kit.Packer(target)
   end
 
   ---Deserialize object like values.
   ---@param target string
   ---@return any
   function kit.unpack(target)
-    return unpack(target)
+    return kit.Unpacker(target)
   end
 end
 
@@ -70,7 +82,7 @@ end
 ---Safe version of vim.schedule.
 ---@param fn fun(...: any): any
 function kit.safe_schedule(fn)
-  if is_thread then
+  if vim.is_thread() then
     fn()
   else
     vim.schedule(fn)
@@ -80,7 +92,7 @@ end
 ---Safe version of vim.schedule_wrap.
 ---@param fn fun(...: any): any
 function kit.safe_schedule_wrap(fn)
-  if is_thread then
+  if vim.is_thread() then
     return fn
   else
     return vim.schedule_wrap(fn)
@@ -114,8 +126,29 @@ kit.unique_id = setmetatable({
   end,
 })
 
----Merge two tables.
+---Clone object.
 ---@generic T
+---@param target T
+---@return T
+function kit.clone(target)
+  if kit.is_array(target) then
+    local new_tbl = {}
+    for k, v in ipairs(target) do
+      new_tbl[k] = kit.clone(v)
+    end
+    return new_tbl
+  elseif kit.is_dict(target) then
+    local new_tbl = {}
+    for k, v in pairs(target) do
+      new_tbl[k] = kit.clone(v)
+    end
+    return new_tbl
+  end
+  return target
+end
+
+---Merge two tables.
+---@generic T: any[]
 ---NOTE: This doesn't merge array-like table.
 ---@param tbl1 T
 ---@param tbl2 T
@@ -151,21 +184,6 @@ function kit.merge(tbl1, tbl2)
   end
 end
 
----Recursive convert value via callback function.
----@param tbl table
----@param callback fun(value: any): any
----@return table
-function kit.convert(tbl, callback)
-  if kit.is_dict(tbl) then
-    local new_tbl = {}
-    for k, v in pairs(tbl) do
-      new_tbl[k] = kit.convert(v, callback)
-    end
-    return new_tbl
-  end
-  return callback(tbl)
-end
-
 ---Map array.
 ---@param array table
 ---@param fn fun(item: unknown, index: integer): unknown
@@ -194,12 +212,42 @@ function kit.concat(tbl1, tbl2)
   return new_tbl
 end
 
+---Return true if v is contained in array.
+---@param array any[]
+---@param v any
+---@return boolean
+function kit.contains(array, v)
+  for _, item in ipairs(array) do
+    if item == v then
+      return true
+    end
+  end
+  return false
+end
+
+---Slice the array.
+---@generic T: any[]
+---@param array T
+---@param s integer
+---@param e integer
+---@return T
+function kit.slice(array, s, e)
+  if not kit.is_array(array) then
+    error('[kit] specified value is not an array.')
+  end
+  local new_array = {}
+  for i = s, e do
+    table.insert(new_array, array[i])
+  end
+  return new_array
+end
+
 ---The value to array.
 ---@param value any
 ---@return table
 function kit.to_array(value)
   if type(value) == 'table' then
-    if vim.tbl_islist(value) or vim.tbl_isempty(value) then
+    if islist(value) or isempty(value) then
       return value
     end
   end
@@ -210,14 +258,14 @@ end
 ---@param value any
 ---@return boolean
 function kit.is_array(value)
-  return not not (type(value) == 'table' and (vim.tbl_islist(value) or vim.tbl_isempty(value)))
+  return not not (type(value) == 'table' and (islist(value) or isempty(value)))
 end
 
 ---Check the value is dict.
 ---@param value any
 ---@return boolean
 function kit.is_dict(value)
-  return type(value) == 'table' and (not vim.tbl_islist(value) or vim.tbl_isempty(value))
+  return type(value) == 'table' and (not islist(value) or isempty(value))
 end
 
 ---Reverse the array.
@@ -280,6 +328,22 @@ function kit.set(value, path, new_value)
     current = current[key]
   end
   current[path[#path]] = new_value
+end
+
+---String dedent.
+function kit.dedent(s)
+  local lines = vim.split(s, '\n')
+  if lines[1]:match('^%s*$') then
+    table.remove(lines, 1)
+  end
+  if lines[#lines]:match('^%s*$') then
+    table.remove(lines, #lines)
+  end
+  local base_indent = lines[1]:match('^%s*')
+  for i, line in ipairs(lines) do
+    lines[i] = line:gsub('^' .. base_indent, '')
+  end
+  return table.concat(lines, '\n')
 end
 
 return kit
