@@ -1,9 +1,9 @@
 local SideEffect = {}
 
 function SideEffect.prevent(callback)
-  vim.diagnostic.disable(0)
+  vim.diagnostic.enable(false)
   local ok, res = pcall(callback)
-  vim.diagnostic.enable(0)
+  vim.diagnostic.enable(true)
   if not ok then
     error(res)
   end
